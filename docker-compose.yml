@@ -1,0 +1,24 @@
+# web + worker + postgres sharing one downloads volume. Put real values in .env (never commit it).
+services:
+  db:
+    image: postgres:16
+    environment: { POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}", POSTGRES_DB: clipvault }
+    volumes: [pgdata:/var/lib/postgresql/data]
+    restart: unless-stopped
+  web:
+    build: .
+    env_file: .env
+    environment: { DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD}@db:5432/clipvault", JOB_MODE: external, DOWNLOAD_DIR: /data/downloads }
+    volumes: [downloads:/data/downloads]
+    ports: ["3000:3000"]
+    depends_on: [db]
+    restart: unless-stopped
+  worker:
+    build: .
+    command: ["npx", "tsx", "workers/worker.ts"]
+    env_file: .env
+    environment: { DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD}@db:5432/clipvault", JOB_MODE: external, DOWNLOAD_DIR: /data/downloads }
+    volumes: [downloads:/data/downloads]
+    depends_on: [db]
+    restart: unless-stopped
+volumes: { pgdata: {}, downloads: {} }
